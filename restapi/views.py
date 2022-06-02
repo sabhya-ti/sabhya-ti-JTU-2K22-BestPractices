@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 from decimal import Decimal
 import pandas as pd
 import numpy as np
+from concurrent.futures import ThreadPoolExecutor
 import urllib.request
 from datetime import datetime
 
@@ -19,6 +20,8 @@ from rest_framework import status
 from restapi.models import *
 from restapi.serializers import *
 from restapi.custom_exception import *
+
+MAX_TIME_FOR_READING = 60
 
 
 
@@ -49,7 +52,7 @@ def balance(request):
     final_balance = {k: v for k, v in final_balance.items() if v != 0}
 
     response = [{"user": k, "amount": int(v)} for k, v in final_balance.items()]
-    return Response(response, status=200)
+    return Response(response, status=status.HTTP_200_OK)
 
 
 def normalize(expense):
@@ -75,19 +78,19 @@ def normalize(expense):
     return balances
 
 
-class user_view_set(ModelViewSet):
+class UserViewSet(ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = (AllowAny,)
 
 
-class category_view_set(ModelViewSet):
+class CategoryViewSet(ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     http_method_names = ['get', 'post']
 
 
-class group_view_set(ModelViewSet):
+class GroupViewSet(ModelViewSet):
     queryset = Groups.objects.all()
     serializer_class = GroupSerializer
 
@@ -105,7 +108,7 @@ class group_view_set(ModelViewSet):
         group.save()
         group.members.add(user)
         serializer = self.get_serializer(group)
-        return Response(serializer.data, status=201)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @action(methods=['put'], detail=True)
     def members(self, request, pk=None):
@@ -122,7 +125,7 @@ class group_view_set(ModelViewSet):
             for user_id in removed_ids:
                 group.members.remove(user_id)
         group.save()
-        return Response(status=204)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(methods=['get'], detail=True)
     def expenses(self, _request, pk=None):
@@ -131,7 +134,7 @@ class group_view_set(ModelViewSet):
             raise UnauthorizedUserException()
         expenses = group.expenses_set
         serializer = ExpensesSerializer(expenses, many=True)
-        return Response(serializer.data, status=200)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @action(methods=['get'], detail=True)
     def balances(self, _request, pk=None):
@@ -161,10 +164,10 @@ class group_view_set(ModelViewSet):
             else:
                 end -= 1
 
-        return Response(balances, status=200)
+        return Response(balances, status=status.HTTP_200_OK)
 
 
-class expenses_view_set(ModelViewSet):
+class ExpensesViewSet(ModelViewSet):
     queryset = Expenses.objects.all()
     serializer_class = ExpensesSerializer
 
@@ -264,9 +267,11 @@ def multiThreadedReader(urls, num_threads):
         Read multiple files through HTTP
     """
     result = []
-    for url in urls:
-        data = reader(url, 60)
-        data = data.decode('utf-8')
-        result.extend(data.split("\n"))
-    result = sorted(result, key=lambda elem:elem[1])
-    return result
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = {executor.submit(reader, url, MAX_TIME_FOR_READING): url for url in urls}
+        for future in concurrent.futures.as_completed(futures):
+            data = future.result()
+            data = data.decode('utf-8')
+            result.extend(data.split("\n"))
+        result = sorted(result, key = lambda elem:elem[1])
+        return result
