@@ -21,7 +21,7 @@ from restapi.models import *
 from restapi.serializers import *
 from restapi.custom_exception import *
 
-MAX_TIME_FOR_READING = 60
+from constants import MAX_TIME_FOR_READING
 
 
 
