@@ -22,6 +22,7 @@ from restapi.serializers import *
 from restapi.custom_exception import *
 
 from constants import MAX_TIME_FOR_READING
+import logging as logger
 
 
 
@@ -32,6 +33,7 @@ def index(_request):
 @api_view(['POST'])
 def logout(request):
     request.user.auth_token.delete()
+    logger.info("User requested auth token delete, statu: 204")
     return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -52,6 +54,7 @@ def balance(request):
     final_balance = {k: v for k, v in final_balance.items() if v != 0}
 
     response = [{"user": k, "amount": int(v)} for k, v in final_balance.items()]
+    logger.info("Balance sent as response to user, status: 200")
     return Response(response, status=status.HTTP_200_OK)
 
 
@@ -108,6 +111,7 @@ class GroupViewSet(ModelViewSet):
         group.save()
         group.members.add(user)
         serializer = self.get_serializer(group)
+        logger.info("User added to group, status: 201")
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @action(methods=['put'], detail=True)
@@ -125,6 +129,7 @@ class GroupViewSet(ModelViewSet):
             for user_id in removed_ids:
                 group.members.remove(user_id)
         group.save()
+        logger.info("Status: 204")
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(methods=['get'], detail=True)
@@ -134,6 +139,7 @@ class GroupViewSet(ModelViewSet):
             raise UnauthorizedUserException()
         expenses = group.expenses_set
         serializer = ExpensesSerializer(expenses, many=True)
+        logger.info("Expenses request completed, status: 200")
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @action(methods=['get'], detail=True)
@@ -163,7 +169,7 @@ class GroupViewSet(ModelViewSet):
                 start += 1
             else:
                 end -= 1
-
+        logger.info("Balances request complete, status: 200")
         return Response(balances, status=status.HTTP_200_OK)
 
 
@@ -198,6 +204,7 @@ def log_processor(request):
     cleaned = transform(sorted_logs)
     data = aggregate(cleaned)
     response = response_format(data)
+    logger.info("Logs processed, status: 200")
     return Response({"response":response}, status=status.HTTP_200_OK)
 
 def sort_by_time_stamp(logs):
