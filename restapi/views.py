@@ -207,7 +207,16 @@ def log_processor(request):
     logger.info("Logs processed, status: 200")
     return Response({"response":response}, status=status.HTTP_200_OK)
 
-def sort_by_time_stamp(logs):
+def sort_by_time_stamp(logs: str):
+    """
+    Sorts logs by their time stamp
+  
+    Parameters:
+    logs (string): The logs that need to be sorted
+  
+    Returns:
+    string: Logs sorted by time
+    """
     data = []
     for log in logs:
         data.append(log.split(" "))
@@ -215,7 +224,16 @@ def sort_by_time_stamp(logs):
     data = sorted(data, key=lambda elem: elem[1])
     return data
 
-def response_format(raw_data):
+def response_format(raw_data: str):
+    """
+    Takes in raw data and modifies it into the expected format
+  
+    Parameters:
+    raw_data (string): The raw data that needs to be changed
+  
+    Returns:
+    string: response in the proper format
+    """
     response = []
     for timestamp, data in raw_data.items():
         entry = {'timestamp': timestamp}
